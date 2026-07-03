@@ -5,6 +5,11 @@ TasteAR is a browser-based WebAR application that allows restaurant customers to
 Built using **MindAR**, **A-Frame**, and **HTML/CSS/JavaScript**, the project works directly in a mobile browser without requiring any application installation.
 
 ---
+## 🎥 Project Demo
+
+Download and watch the demo:
+
+[▶️ TasteAR Demo](demo/TasteAR_Demo.mp4)
 
 ## ✨ Features
 
