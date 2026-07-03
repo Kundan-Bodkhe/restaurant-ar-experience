@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scan & Taste — AR Food Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand: #FF4D1A;
+    --brand-dark: #CC3300;
+    --bg: #0D0B09;
+    --surface: #181410;
+    --card: #1E1A15;
+    --card-hover: #252018;
+    --border: rgba(255,255,255,0.06);
+    --text: #F5F0E8;
+    --muted: #8A8070;
+    --accent-y: #FFB800;
+  }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -30vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(circle, rgba(255,77,26,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  /* Header */
+  .header {
+    padding: 36px 0 24px;
+    text-align: center;
+  }
+
+  .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--brand);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.3px;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    background: rgba(255,77,26,0.12);
+    border: 1px solid rgba(255,77,26,0.25);
+    color: var(--brand);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 8vw, 38px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+  }
+
+  .hero-title span {
+    color: var(--brand);
+  }
+
+  .hero-sub {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  /* Step indicator */
+  .step-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    margin: 28px 0 32px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+
+  .step.active { color: var(--brand); }
+  .step.active .step-dot { background: var(--brand); box-shadow: 0 0 8px rgba(255,77,26,0.5); }
+
+  .step-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    max-width: 36px;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  /* Food grid */
+  .food-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .food-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 16px 16px;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .food-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(255,77,26,0.08) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.22s;
+  }
+
+  .food-card:hover,
+  .food-card:focus-visible {
+    background: var(--card-hover);
+    border-color: rgba(255,77,26,0.35);
+    transform: translateY(-3px);
+  }
+
+  .food-card:hover::before { opacity: 1; }
+
+  .food-card.selected {
+    border-color: var(--brand);
+    background: rgba(255,77,26,0.08);
+    transform: scale(0.97);
+  }
+
+  .food-card.selected::before { opacity: 1; }
+
+  .food-emoji-wrap {
+    width: 56px;
+    height: 56px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin-bottom: 12px;
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .food-card:hover .food-emoji-wrap {
+    transform: scale(1.1) rotate(-4deg);
+  }
+
+  .food-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 3px;
+    letter-spacing: -0.2px;
+  }
+
+  .food-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .food-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--brand);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .food-card.selected .food-check {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* CTA */
+  .cta-area {
+    position: sticky;
+    bottom: 20px;
+  }
+
+  .cta-btn {
+    width: 100%;
+    padding: 18px;
+    background: var(--brand);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: -0.2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+  }
+
+  .cta-btn:hover {
+    background: var(--brand-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(255,77,26,0.35);
+  }
+
+  .cta-btn:active { transform: scale(0.98); }
+
+  .cta-btn:disabled {
+    background: #333;
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .cta-btn .arrow {
+    font-size: 18px;
+    transition: transform 0.18s;
+  }
+
+  .cta-btn:not(:disabled):hover .arrow {
+    transform: translateX(4px);
+  }
+
+  .cta-hint {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  /* Selection banner */
+  .selection-banner {
+    background: rgba(255,77,26,0.08);
+    border: 1px solid rgba(255,77,26,0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s;
+  }
+
+  .selection-banner.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .selection-banner .sel-label {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .selection-banner .sel-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    color: var(--brand);
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0;
+  }
+
+  /* Tag chips */
+  .tag-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tag {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tag:hover, .tag.active {
+    background: rgba(255,77,26,0.1);
+    border-color: rgba(255,77,26,0.3);
+    color: var(--brand);
+  }
+
+  /* AR badge */
+  .ar-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,184,0,0.1);
+    border: 1px solid rgba(255,184,0,0.25);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent-y);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .ar-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--accent-y);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-mark">
+      <div class="logo-icon">🍽</div>
+      <span class="logo-text">TasteAR</span>
+    </div>
+    <div class="hero-tag">AR-Powered Menu</div>
+    <h1 class="hero-title">Pick your dish,<br><span>see it in 3D</span></h1>
+    <p class="hero-sub">Choose a food item below and point your camera at the QR code to see a live AR preview.</p>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="step-bar">
+    <div class="step active">
+      <div class="step-dot"></div>
+      Choose
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step2">
+      <div class="step-dot"></div>
+      Scan
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step3">
+      <div class="step-dot"></div>
+      View AR
+    </div>
+  </div>
+
+  <!-- Category filter -->
+  <div class="tag-row">
+    <div class="tag active" onclick="filterTag(this,'all')">All</div>
+    <div class="tag" onclick="filterTag(this,'fast')">Fast Food</div>
+    <div class="tag" onclick="filterTag(this,'italian')">Italian</div>
+    <div class="tag" onclick="filterTag(this,'drinks')">Drinks</div>
+    <div class="tag" onclick="filterTag(this,'dessert')">Dessert</div>
+  </div>
+
+  <!-- Section label -->
+  <div class="section-label">Select a dish <span class="ar-badge"><span class="ar-dot"></span>AR</span></div>
+
+  <!-- Food Grid -->
+  <div class="food-grid" id="foodGrid">
+    <div class="food-card" data-id="burger" data-cat="fast" data-model="burger.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🍔</div>
+      <div class="food-name">Burger</div>
+      <div class="food-desc">Classic smash burger</div>
+    </div>
+    <div class="food-card" data-id="pizza" data-cat="italian" data-model="pizza.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🍕</div>
+      <div class="food-name">Pizza</div>
+      <div class="food-desc">Wood-fired margherita</div>
+    </div>
+    <div class="food-card" data-id="taco" data-cat="fast" data-model="taco.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🌮</div>
+      <div class="food-name">Taco</div>
+      <div class="food-desc">Street-style taco</div>
+    </div>
+    <div class="food-card" data-id="sushi" data-cat="fast" data-model="sushi.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🍱</div>
+      <div class="food-name">Sushi</div>
+      <div class="food-desc">Nigiri platter</div>
+    </div>
+    <div class="food-card" data-id="pasta" data-cat="italian" data-model="pasta.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🍝</div>
+      <div class="food-name">Pasta</div>
+      <div class="food-desc">Creamy carbonara</div>
+    </div>
+    <div class="food-card" data-id="hotdog" data-cat="fast" data-model="hotdog.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🌭</div>
+      <div class="food-name">Hot Dog</div>
+      <div class="food-desc">New York style</div>
+    </div>
+    <div class="food-card" data-id="cake" data-cat="dessert" data-model="cake.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">🎂</div>
+      <div class="food-name">Cake</div>
+      <div class="food-desc">Chocolate layer cake</div>
+    </div>
+    <div class="food-card" data-id="coffee" data-cat="drinks" data-model="coffee.glb" onclick="selectFood(this)">
+      <div class="food-check">✓</div>
+      <div class="food-emoji-wrap">☕</div>
+      <div class="food-name">Coffee</div>
+      <div class="food-desc">Latte art</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Selection banner -->
+  <div class="selection-banner" id="selBanner">
+    <span style="font-size:22px" id="selEmoji"></span>
+    <div>
+      <div class="sel-label">Selected</div>
+      <div class="sel-name" id="selName"></div>
+    </div>
+    <div style="margin-left:auto;font-size:11px;color:var(--muted)">Tap again to change</div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-area">
+    <button class="cta-btn" id="ctaBtn" disabled onclick="goToAR()">
+      <span>Launch AR Experience</span>
+      <span class="arrow">→</span>
+    </button>
+    <div class="cta-hint" id="ctaHint">Select a dish above to continue</div>
+  </div>
+</div>
+
+<script>
+  let selected = null;
+
+  const foods = {
+    burger: { name: 'Burger', emoji: '🍔' },
+    pizza: { name: 'Pizza', emoji: '🍕' },
+    taco: { name: 'Taco', emoji: '🌮' },
+    sushi: { name: 'Sushi', emoji: '🍱' },
+    pasta: { name: 'Pasta', emoji: '🍝' },
+    hotdog: { name: 'Hot Dog', emoji: '🌭' },
+    cake: { name: 'Cake', emoji: '🎂' },
+    coffee: { name: 'Coffee', emoji: '☕' }
+  };
+
+  function selectFood(card) {
+    document.querySelectorAll('.food-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selected = card.dataset.id;
+
+    const f = foods[selected];
+    document.getElementById('selEmoji').textContent = f.emoji;
+    document.getElementById('selName').textContent = f.name;
+    document.getElementById('selBanner').classList.add('visible');
+
+    const btn = document.getElementById('ctaBtn');
+    btn.disabled = false;
+    document.getElementById('ctaHint').textContent = 'Camera permission will be requested next';
+
+    document.getElementById('step2').querySelector('.step-dot').style.background = 'rgba(255,77,26,0.4)';
+    document.getElementById('step2').style.color = 'rgba(255,255,255,0.5)';
+  }
+
+  function filterTag(el, cat) {
+    document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.food-card').forEach(card => {
+      if (cat === 'all' || card.dataset.cat === cat) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+
+  function goToAR() {
+    if (!selected) return;
+    const model = document.querySelector(`[data-id="${selected}"]`).dataset.model;
+    const name = foods[selected].name;
+    const emoji = encodeURIComponent(foods[selected].emoji);
+    window.location.href = `ar.html?food=${selected}&model=${encodeURIComponent(model)}&name=${encodeURIComponent(name)}&emoji=${emoji}`;
+  }
+</script>
+</body>
+</html>

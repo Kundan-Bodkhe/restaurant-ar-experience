@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>TasteAR — Live View</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<!-- A-Frame + MindAR official A-Frame bundle (this is the correct stable approach) -->
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand: #FF4D1A;
+    --brand-dark: #CC3300;
+    --bg: #0D0B09;
+    --text: #F5F0E8;
+    --muted: #8A8070;
+    --accent-y: #FFB800;
+    --border: rgba(255,255,255,0.08);
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    user-select: none;
+  }
+
+  a-scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Permission overlay ───────────────────── */
+  #permOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    text-align: center;
+  }
+
+  .perm-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(255,77,26,0.1);
+    border: 1px solid rgba(255,77,26,0.25);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    margin-bottom: 28px;
+  }
+
+  .perm-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+    line-height: 1.15;
+  }
+  .perm-title span { color: var(--brand); }
+
+  .perm-sub {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 280px;
+    margin: 0 auto 28px;
+  }
+
+  .perm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 320px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .perm-item-icon { font-size: 20px; }
+
+  .perm-launch-btn {
+    width: 100%;
+    max-width: 320px;
+    padding: 18px;
+    background: var(--brand);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: all 0.18s;
+  }
+  .perm-launch-btn:hover { background: var(--brand-dark); transform: translateY(-1px); }
+  .perm-launch-btn:active { transform: scale(0.98); }
+  .perm-launch-btn:disabled { background: #333; color: var(--muted); cursor: not-allowed; transform: none; }
+
+  #arError {
+    display: none;
+    background: rgba(220,38,38,0.1);
+    border: 1px solid rgba(220,38,38,0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #FCA5A5;
+    margin-top: 12px;
+    max-width: 320px;
+    text-align: left;
+    line-height: 1.5;
+  }
+
+  .perm-back { margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .perm-back a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ── AR UI overlay ─────────────────────────── */
+  #arUI {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    display: none;
+    flex-direction: column;
+  }
+
+  .top-bar {
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 52px 20px 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+
+  .food-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 7px 14px 7px 10px;
+  }
+  .pill-emoji { font-size: 20px; }
+  .pill-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+  .pill-tag { font-size: 10px; color: var(--accent-y); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .scan-guide {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .viewfinder {
+    width: 220px;
+    height: 220px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .corner { position: absolute; width: 28px; height: 28px; border-color: var(--brand); border-style: solid; border-width: 0; }
+  .corner.tl { top:0;left:0;border-top-width:3px;border-left-width:3px;border-radius:4px 0 0 0; }
+  .corner.tr { top:0;right:0;border-top-width:3px;border-right-width:3px;border-radius:0 4px 0 0; }
+  .corner.bl { bottom:0;left:0;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 4px; }
+  .corner.br { bottom:0;right:0;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 4px 0; }
+
+  @keyframes scanLine {
+    0%   { top:12px; opacity:1; }
+    85%  { opacity:1; }
+    100% { top:calc(100% - 12px); opacity:0; }
+  }
+  .scan-line {
+    position:absolute; left:12px; right:12px; height:2px;
+    background: linear-gradient(90deg,transparent,var(--brand),transparent);
+    animation: scanLine 2.2s ease-in-out infinite;
+    border-radius:2px;
+  }
+  .detected-glow {
+    position:absolute; inset:20px; border-radius:50%;
+    background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.2);
+    opacity:0; transition:opacity 0.4s;
+  }
+
+  .viewfinder.detected .corner { border-color: #4ADE80; }
+  .viewfinder.detected .scan-line { display: none; }
+  .viewfinder.detected .detected-glow { opacity: 1; }
+
+  .scan-label {
+    font-size:13px; color:rgba(255,255,255,0.7); text-align:center;
+    background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    padding:8px 18px; border-radius:20px; border:1px solid var(--border);
+  }
+  .scan-label strong { color: var(--text); }
+
+  .bottom-card {
+    pointer-events: all;
+    margin: 0 16px 32px;
+    background: rgba(13,11,9,0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .status-dot-wrap {
+    flex-shrink:0; width:42px; height:42px; border-radius:12px;
+    background:rgba(255,77,26,0.1); border:1px solid rgba(255,77,26,0.2);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .status-dot-wrap.tracking { background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.3); }
+
+  @keyframes ripple { 0%{transform:scale(0.6);opacity:1} 100%{transform:scale(1.4);opacity:0} }
+
+  .status-dot {
+    width:12px; height:12px; border-radius:50%; background:var(--brand); position:relative;
+  }
+  .status-dot::after {
+    content:''; position:absolute; inset:-3px; border-radius:50%;
+    border:2px solid var(--brand); animation:ripple 1.5s infinite;
+  }
+  .status-dot-wrap.tracking .status-dot { background:#4ADE80; }
+  .status-dot-wrap.tracking .status-dot::after { border-color:#4ADE80; }
+
+  .st-title { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; margin-bottom:2px; }
+  .st-sub { font-size:12px; color:var(--muted); }
+
+  .change-btn {
+    margin-left:auto; background:rgba(255,255,255,0.07); border:1px solid var(--border);
+    border-radius:10px; padding:8px 14px; font-size:12px; font-weight:500; color:var(--text);
+    text-decoration:none; white-space:nowrap; transition:background 0.15s;
+  }
+
+  /* Suppress A-Frame default chrome */
+  .a-enter-vr, .a-loader-title { display:none!important; }
+</style>
+</head>
+<body>
+
+<!-- Permission gate -->
+<div id="permOverlay">
+  <div class="perm-icon" id="permIcon">📷</div>
+  <div class="perm-title">Ready to view<br><span id="permFoodName">your dish</span><br>in AR?</div>
+  <p class="perm-sub">We need camera access to track the QR code and overlay the 3D model on top of it.</p>
+  <div class="perm-item"><span class="perm-item-icon">📷</span> Camera — to see the QR target</div>
+  <div class="perm-item"><span class="perm-item-icon">🔒</span> No recording or data sent</div>
+  <div class="perm-item"><span class="perm-item-icon">🎯</span> Same QR code you scanned</div>
+  <button class="perm-launch-btn" id="launchBtn" onclick="startAR()">Allow Camera &amp; Start AR</button>
+  <div id="arError"></div>
+  <div class="perm-back"><a href="index.html">← Go back &amp; change dish</a></div>
+</div>
+
+<!-- A-Frame scene injected here -->
+<div id="arSceneWrap" style="position:fixed;inset:0;z-index:1;display:none;"></div>
+
+<!-- AR UI overlay -->
+<div id="arUI">
+  <div class="top-bar">
+    <a class="back-btn" href="index.html">← Menu</a>
+    <div class="food-pill">
+      <span class="pill-emoji" id="topEmoji">🍔</span>
+      <div>
+        <div class="pill-name" id="topFoodName">Burger</div>
+        <div class="pill-tag">AR Active</div>
+      </div>
+    </div>
+    <div style="width:72px"></div>
+  </div>
+
+  <div class="scan-guide">
+    <div class="viewfinder" id="viewfinder">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div class="scan-line"></div>
+      <div class="detected-glow"></div>
+    </div>
+    <div class="scan-label" id="scanLabel">Point at the <strong>QR code</strong> on your table</div>
+  </div>
+
+  <div class="bottom-card">
+    <div class="status-dot-wrap" id="statusDotWrap"><div class="status-dot"></div></div>
+    <div class="status-text">
+      <div class="st-title" id="stTitle">Searching for QR…</div>
+      <div class="st-sub"   id="stSub">Hold your phone steady</div>
+    </div>
+    <a class="change-btn" href="index.html">Change dish</a>
+  </div>
+</div>
+
+<script>
+/* ── URL params ─────────────────────────────────── */
+const params    = new URLSearchParams(location.search);
+const foodId    = params.get('food')  || 'burger';
+const foodName  = params.get('name')  || 'Burger';
+const foodEmoji = decodeURIComponent(params.get('emoji') || '🍔');
+
+const foodConfig = {
+  burger: { primitive:'sphere',   color:'#E8731A', scale:'0.08 0.08 0.08' },
+  pizza:  { primitive:'cylinder', color:'#FF4444', scale:'0.12 0.02 0.12' },
+  taco:   { primitive:'torus',    color:'#FFB800', scale:'0.07 0.07 0.07' },
+  sushi:  { primitive:'box',      color:'#F97316', scale:'0.12 0.04 0.08' },
+  pasta:  { primitive:'sphere',   color:'#F59E0B', scale:'0.08 0.08 0.08' },
+  hotdog: { primitive:'cylinder', color:'#DC2626', scale:'0.04 0.12 0.04' },
+  cake:   { primitive:'box',      color:'#A855F7', scale:'0.1 0.1 0.1'   },
+  coffee: { primitive:'cylinder', color:'#6B3A1F', scale:'0.07 0.1 0.07' },
+};
+const cfg = foodConfig[foodId] || foodConfig.burger;
+
+/* Populate permission screen */
+document.getElementById('permIcon').textContent     = foodEmoji;
+document.getElementById('permFoodName').textContent = foodName;
+document.getElementById('topEmoji').textContent     = foodEmoji;
+document.getElementById('topFoodName').textContent  = foodName;
+
+/* ── Helpers ────────────────────────────────────── */
+function showError(msg) {
+  document.getElementById('permOverlay').style.display = 'flex';
+  document.getElementById('arUI').style.display = 'none';
+  const e = document.getElementById('arError');
+  e.textContent = '⚠ ' + msg;
+  e.style.display = 'block';
+  const btn = document.getElementById('launchBtn');
+  btn.disabled = false;
+  btn.textContent = 'Try Again';
+}
+
+/* ── Start AR ───────────────────────────────────── */
+function startAR() {
+  const btn = document.getElementById('launchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+  document.getElementById('arError').style.display = 'none';
+
+  /* Verify A-Frame loaded */
+  if (typeof AFRAME === 'undefined') {
+    showError('A-Frame library did not load. Check internet connection and refresh.');
+    return;
+  }
+
+  /* Build & inject scene HTML */
+  const wrap = document.getElementById('arSceneWrap');
+  wrap.innerHTML = `
+    <a-scene
+      id="mainScene"
+      mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no;"
+      color-space="sRGB"
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets></a-assets>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity mindar-image-target="targetIndex: 0" id="foodTarget">
+        <a-${cfg.primitive}
+          color="${cfg.color}"
+          scale="${cfg.scale}"
+          position="0 0 0.05"
+          animation="property:rotation; to:0 360 0; loop:true; dur:3000; easing:linear;"
+          animation__bob="property:position; from:0 0 0.05; to:0 0 0.09; dir:alternate; loop:true; dur:1200; easing:easeInOutSine;"
+          roughness="0.4" metalness="0.1"
+        ></${cfg.primitive}>
+        <a-torus color="#ffffff" radius="0.13" radius-tubular="0.006"
+          position="0 0 0.005" rotation="90 0 0" opacity="0.45"
+        ></a-torus>
+        <a-text value="${foodName}" align="center" color="#ffffff"
+          width="0.55" position="0 0.19 0"
+        ></a-text>
+      </a-entity>
+
+      <a-light type="ambient"      color="#ffffff" intensity="0.9"></a-light>
+      <a-light type="directional"  color="#ffffff" intensity="1.2" position="1 2 3"></a-light>
+    </a-scene>`;
+
+  wrap.style.display = 'block';
+
+  const scene = document.getElementById('mainScene');
+
+  /* A-Frame fires 'loaded' when all components are registered */
+  scene.addEventListener('loaded', async () => {
+    const sys = scene.systems['mindar-image-system'];
+    if (!sys) {
+      showError('MindAR system not initialised. Make sure mindar-image-aframe.prod.js loaded.');
+      wrap.style.display = 'none';
+      return;
+    }
+
+    try {
+      await sys.start();
+    } catch(err) {
+      showError('Camera/AR failed: ' + (err.message || String(err)));
+      wrap.style.display = 'none';
+      return;
+    }
+
+    /* Show AR UI */
+    document.getElementById('permOverlay').style.display = 'none';
+    document.getElementById('arUI').style.display = 'flex';
+
+    /* Tracking events */
+    const target = document.getElementById('foodTarget');
+
+    target.addEventListener('targetFound', () => {
+      document.getElementById('viewfinder').classList.add('detected');
+      document.getElementById('scanLabel').innerHTML = '<strong>' + foodEmoji + ' ' + foodName + '</strong> detected!';
+      document.getElementById('statusDotWrap').classList.add('tracking');
+      document.getElementById('stTitle').textContent = foodName + ' AR active';
+      document.getElementById('stSub').textContent   = 'Model is live on the QR code';
+    });
+
+    target.addEventListener('targetLost', () => {
+      document.getElementById('viewfinder').classList.remove('detected');
+      document.getElementById('scanLabel').innerHTML = 'Point at the <strong>QR code</strong> on your table';
+      document.getElementById('statusDotWrap').classList.remove('tracking');
+      document.getElementById('stTitle').textContent = 'Searching for QR…';
+      document.getElementById('stSub').textContent   = 'Hold your phone steady';
+    });
+  });
+}
+</script>
+</body>
+</html>
